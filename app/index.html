@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Metaverse Listing Copilot</title>
+    <link rel="stylesheet" href="/app/listing-copilot.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <strong>Metaverse Listing Copilot</strong>
+      <button id="resetButton" class="ghost-button">清空</button>
+    </header>
+    <main class="workspace">
+      <section class="panel hero-panel">
+        <p class="eyebrow">PRIVATE LISTING TOOL</p>
+        <h1>元宇宙卡牌标题生成助手</h1>
+        <p>批量上传卡图，按单图或前后图配对生成 eBay-ready 标题。今晚目标：能登录、能上传、能生成标题、能复制、成本可控。</p>
+      </section>
+      <section class="panel controls">
+        <div class="mode-control">
+          <label><input type="radio" name="assetMode" value="single" checked> Single Image</label>
+          <label><input type="radio" name="assetMode" value="pair"> Front / Back Pair</label>
+        </div>
+        <label class="drop-zone" id="dropZone">
+          <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+          <strong>选择或拖入 JPG / PNG / WEBP</strong>
+          <span id="statusText">支持批量上传，前后图模式按上传顺序配对。</span>
+        </label>
+        <button id="processButton" class="primary-button" disabled>开始生成</button>
+      </section>
+      <section class="stats-grid">
+        <article><span>图像队列</span><strong id="statImages">0</strong></article>
+        <article><span>Card assets</span><strong id="statAssets">0</strong></article>
+        <article><span>Processed</span><strong id="statProcessed">0</strong></article>
+        <article><span>HIGH</span><strong id="statHigh">0</strong></article>
+        <article><span>UNSURE</span><strong id="statUnsure">0</strong></article>
+        <article><span>FAILED</span><strong id="statFailed">0</strong></article>
+        <article><span>Requests</span><strong id="statRequests">0</strong></article>
+        <article><span>Est. Cost</span><strong id="statCost">$0.000</strong></article>
+      </section>
+      <section class="panel asset-board">
+        <div class="section-head"><h2>Assets</h2><p id="previewSummary">等待上传图片。</p></div>
+        <div id="assetPreviewList" class="asset-list"></div>
+      </section>
+    </main>
+    <script type="module" src="/app/listing-copilot.js"></script>
+  </body>
+</html>
