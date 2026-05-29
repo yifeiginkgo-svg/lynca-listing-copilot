@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Metaverse Listing Copilot Login</title>
+    <link rel="stylesheet" href="/app/listing-copilot.css">
+  </head>
+  <body class="login-page">
+    <main class="login-card">
+      <p class="eyebrow">PRIVATE LISTING TOOL</p>
+      <h1>Metaverse Listing Copilot</h1>
+      <form id="loginForm">
+        <label>Username <input id="username" autocomplete="username" required></label>
+        <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary-button" type="submit">登录</button>
+        <p id="loginMessage" class="status"></p>
+      </form>
+    </main>
+    <script type="module" src="/app/login.js"></script>
+  </body>
+</html>
