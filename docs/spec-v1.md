@@ -261,6 +261,10 @@ Confidence Engine
 
 The goal is not card identification. The goal is eBay-ready listing title generation that preserves collectible-market terminology.
 
+Training reports:
+
+- [Subset A V1](training-subset-a-v1.md)
+
 ## 13. Backlog / Not V1
 
 V1 不做：

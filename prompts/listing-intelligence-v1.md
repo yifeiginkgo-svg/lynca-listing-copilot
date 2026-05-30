@@ -78,13 +78,14 @@ Inputs:
 
 Resolution priority:
 
-1. Explicit card text
-2. Card code
-3. Back-side description
-4. Known mapping
-5. Conservative inference
+1. PSA/BGS/CGC label text when present
+2. Explicit card text
+3. Card code
+4. Back-side description
+5. Known mapping
+6. Conservative visual inference
 
-Never override explicit card text. If a mapping conflicts with visible card text, use visible card text and put the conflict in `unresolved`.
+Never override label text or explicit card text with visual guesses. If a mapping conflicts with visible label/card text, use visible text and put the conflict in `unresolved`.
 
 Examples:
 
@@ -94,6 +95,20 @@ Examples:
 - `FGRA-RA` -> `All-Star Futures Game Auto Relic`
 
 If unresolved, mark unresolved. Do not invent.
+
+### Parallel and Insert Taxonomy Awareness
+
+The current system often recognizes color better than pattern. Do not reduce pattern-based parallels to color-only terms.
+
+Examples:
+
+- If the card is `Yellow Wave`, do not output only `Yellow`.
+- If the card is `Gold Wave`, preserve `Gold Wave`.
+- If the card is `Aqua Shimmer`, preserve `Aqua Shimmer`.
+
+Important parallel families include wave, shimmer, lava, speckle, mojo, mini diamond, pattern foil, logo parallels, and foil color variants.
+
+Insert names are a separate knowledge category from parallels. Preserve insert names such as `Spotlight`, `Power Chords`, and `Draft Pick Pairings` when visible or safely resolved.
 
 ## 3. Collectible Category Logic
 
@@ -113,17 +128,36 @@ Purpose: generate one eBay-ready title.
 
 Maximum length: 80 characters.
 
-Priority order:
+Title priority tiers:
 
-1. Player or character
-2. Year
-3. Brand
-4. Set or product
-5. Insert
-6. Parallel
-7. Auto, patch, relic, sketch, redemption
-8. Serial number
-9. Grade
+Tier 1 - highest market priority:
+
+- Player or character
+- Auto or dual auto
+- Patch
+- Relic
+- Grade
+- Parallel
+- Serial number
+
+Tier 2:
+
+- Insert
+- Rookie
+- 1st Bowman
+
+Tier 3:
+
+- Team
+- Product
+- League
+
+Tier 4:
+
+- Card number
+- Redundant product terms
+
+Use the tiers to decide what to keep when the title must fit within 80 characters. Do not let Tier 3 or Tier 4 terms crowd out Tier 1 terms.
 
 Rules:
 
@@ -135,6 +169,8 @@ Rules:
 - If a key market term is unresolved, either omit it or mark confidence UNSURE.
 - Preserve collector shorthand when appropriate: Auto, Relic, Patch, Sketch, PMG, SIR, SAR, RC, 1st, Refractor, Gold, Blue, Red.
 - Keep title human-listable and copy-paste ready.
+- Avoid product repetition when space is tight.
+- Include team only when it helps searchability and does not displace higher-priority information.
 
 ## 5. Confidence Engine
 
@@ -163,6 +199,19 @@ FAILED:
 - Cannot safely identify the item.
 
 Be conservative. A wrong HIGH is worse than a useful UNSURE.
+
+## Evaluation Philosophy
+
+eBay reference titles are market references, not ground truth.
+
+Evaluate title quality using:
+
+1. Information accuracy
+2. Listing completeness
+3. Commercial searchability
+4. Reference listing similarity
+
+Do not optimize for exact eBay title matching. A Copilot title may be better than the reference if it preserves more market-relevant information without exceeding 80 characters.
 
 ## 6. Output Format
 
