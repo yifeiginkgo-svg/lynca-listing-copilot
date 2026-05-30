@@ -106,6 +106,15 @@ function normalizeTitle(title, maxLength) {
   return normalized.slice(0, maxLength).replace(/\s+\S*$/, "").trim();
 }
 
+function moveLeadingGradeToEnd(title, maxLength) {
+  const normalized = String(title || "").replace(/\s+/g, " ").trim();
+  const leadingGrade = normalized.match(/^(PSA|BGS|CGC)\s+(?:GEM\s+MINT\s+|MINT\s+|PRISTINE\s+)?(\d+(?:\.\d+)?)\s+(.+)$/i);
+  if (!leadingGrade) return normalizeTitle(normalized, maxLength);
+
+  const [, company, grade, rest] = leadingGrade;
+  return normalizeTitle(`${rest} ${company.toUpperCase()} ${grade}`, maxLength);
+}
+
 function stripBackgroundTerms(value) {
   return backgroundTermPatterns.reduce(
     (text, pattern) => text.replace(pattern, " "),
@@ -638,7 +647,7 @@ function normalizeAiResult(result, maxTitleLength) {
   const fields = normalizeFields(result.fields);
   const unresolved = normalizeUnresolved(result.unresolved, result.fields);
   const sanitized = sanitizeResultText(result, fields, confidence, unresolved, maxTitleLength);
-  const title = sanitized.title;
+  const title = moveLeadingGradeToEnd(sanitized.title, maxTitleLength);
   const calibrated = calibrateConfidence({
     title,
     confidence: sanitized.confidence,

@@ -89,7 +89,7 @@ assert.doesNotMatch(backgroundIgnored.reason, /Metaverse Cards/i);
 assert.match(backgroundIgnored.reason, /Background branding ignored/i);
 
 const clearPsaLabel = await callApi({
-  title: "2024 Topps Chrome Shohei Ohtani PSA 10",
+  title: "PSA 10 2024 Topps Chrome Shohei Ohtani",
   confidence: "HIGH",
   reason: "PSA label explicitly supports player, year, product, and grade.",
   fields: {
@@ -103,6 +103,7 @@ const clearPsaLabel = await callApi({
 });
 
 assert.equal(clearPsaLabel.confidence, "HIGH");
+assert.equal(clearPsaLabel.title, "2024 Topps Chrome Shohei Ohtani PSA 10");
 
 const visuallyGuessedParallel = await callApi({
   title: "2025 Bowman Chrome Test Player Fuchsia Wave Auto 137/199",

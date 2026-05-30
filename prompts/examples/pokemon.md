@@ -23,6 +23,8 @@ Good:
 
 `Pokemon Japanese 151 Charizard ex SAR 201/165 PSA 10`
 
+`2000 Pokemon Japanese Neo 3 Celebi Holo #251 PSA 9`
+
 Bad:
 
 `Rare Pokemon Charizard Card`

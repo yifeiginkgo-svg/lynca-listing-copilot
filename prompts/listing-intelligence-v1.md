@@ -199,6 +199,10 @@ When uncertain, prefer:
 
 Rules:
 
+- Use stable title order by default: Year + Brand/Product + Set/Insert + Subject + Parallel + Serial + Auto/Relic/Patch + Grade.
+- PSA, BGS, CGC, grade company, and grade number should be near the end of the title by default.
+- Do not put grading information at the beginning unless the card identity is primarily derived from the slab label and no better card-front identity is available.
+- Preferred example: `2000 Pokemon Japanese Neo 3 Celebi Holo #251 PSA 9`.
 - Keep market-relevant information.
 - Remove filler.
 - Avoid duplicate wording.

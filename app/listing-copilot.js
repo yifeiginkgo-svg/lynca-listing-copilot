@@ -88,6 +88,15 @@ function normalizeConfidence(confidence) {
   }[String(confidence || "").toUpperCase()] || "MEDIUM";
 }
 
+function confidenceRank(confidence) {
+  return {
+    HIGH: 0,
+    MEDIUM: 1,
+    LOW: 2,
+    FAILED: 3
+  }[normalizeConfidence(confidence)] ?? 1;
+}
+
 function setStatus(message) {
   elements.statusText.textContent = message;
 }
@@ -163,6 +172,24 @@ function resultForAsset(asset) {
   return state.results.find((result) => result.index === asset.index);
 }
 
+function sortedAssetsForDisplay() {
+  if (state.results.length !== state.assets.length) {
+    return state.assets;
+  }
+
+  return [...state.assets].sort((left, right) => {
+    const leftResult = resultForAsset(left);
+    const rightResult = resultForAsset(right);
+
+    if (!leftResult && !rightResult) return left.index - right.index;
+    if (!leftResult) return 1;
+    if (!rightResult) return -1;
+
+    return confidenceRank(leftResult.confidence) - confidenceRank(rightResult.confidence)
+      || left.index - right.index;
+  });
+}
+
 function imageSideLabel(imageIndex) {
   if (state.mode !== "pair") return "Image";
   return imageIndex === 0 ? "Front" : "Back";
@@ -171,7 +198,7 @@ function imageSideLabel(imageIndex) {
 function renderAssetRows() {
   if (!state.assets.length) return;
 
-  elements.assetPreviewList.innerHTML = state.assets.map((asset) => {
+  elements.assetPreviewList.innerHTML = sortedAssetsForDisplay().map((asset) => {
     const result = resultForAsset(asset);
 
     return `
