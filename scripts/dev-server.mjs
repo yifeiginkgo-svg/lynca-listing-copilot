@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createHmac } from "node:crypto";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -200,7 +200,7 @@ createServer(async (request, response) => {
   }
 
   const filePath = resolvePath(request.url || "/");
-  if (!filePath || !existsSync(filePath)) {
+  if (!filePath || !existsSync(filePath) || statSync(filePath).isDirectory()) {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
     response.end("Not found");
     return;

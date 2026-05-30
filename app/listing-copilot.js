@@ -3,10 +3,14 @@ const maxTitleLength = 80;
 const MAX_CONCURRENT_WORKERS = 6;
 const IMAGE_MAX_EDGE = 1400;
 const IMAGE_MIN_EDGE = 900;
-const IMAGE_INITIAL_QUALITY = 0.84;
-const IMAGE_MIN_QUALITY = 0.58;
+const IMAGE_INITIAL_QUALITY = 0.82;
+const IMAGE_MIN_QUALITY = 0.72;
+const IMAGE_EMERGENCY_MIN_QUALITY = 0.58;
 const TARGET_IMAGE_DATA_URL_CHARS = 1_250_000;
 const MAX_ASSET_REQUEST_BYTES = 3_400_000;
+const supportedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
+const supportedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const heicUnsupportedMessage = "当前浏览器暂不支持 HEIC/HEIF 预览，请先在手机相册中导出为 JPG，或使用微信/系统截图后上传。";
 
 const state = {
   files: [],
@@ -54,6 +58,24 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function fileExtension(name) {
+  const match = String(name || "").toLowerCase().match(/\.[^.]+$/);
+  return match ? match[0] : "";
+}
+
+function isHeicFile(file) {
+  const extension = fileExtension(file.name);
+  return ["image/heic", "image/heif"].includes(String(file.type || "").toLowerCase())
+    || extension === ".heic"
+    || extension === ".heif";
+}
+
+function isSupportedImageFile(file) {
+  const type = String(file.type || "").toLowerCase();
+  const extension = fileExtension(file.name);
+  return supportedImageTypes.includes(type) || supportedImageExtensions.includes(extension);
+}
+
 function loadImage(dataUrl) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -96,11 +118,23 @@ async function fileToAssetImage(file) {
   const originalDataUrl = await readFileAsDataUrl(file);
   let maxEdge = IMAGE_MAX_EDGE;
   let quality = IMAGE_INITIAL_QUALITY;
-  let compressed = await compressImageDataUrl(originalDataUrl, maxEdge, quality);
+  let compressed;
 
-  while (compressed.dataUrl.length > TARGET_IMAGE_DATA_URL_CHARS && (quality > IMAGE_MIN_QUALITY || maxEdge > IMAGE_MIN_EDGE)) {
+  try {
+    compressed = await compressImageDataUrl(originalDataUrl, maxEdge, quality);
+  } catch (error) {
+    if (isHeicFile(file)) {
+      throw new Error(heicUnsupportedMessage);
+    }
+
+    throw new Error(`图片无法读取或预览：${error.message || "浏览器解码失败"}`);
+  }
+
+  while (compressed.dataUrl.length > TARGET_IMAGE_DATA_URL_CHARS && (quality > IMAGE_EMERGENCY_MIN_QUALITY || maxEdge > IMAGE_MIN_EDGE)) {
     if (quality > IMAGE_MIN_QUALITY) {
-      quality = Math.max(IMAGE_MIN_QUALITY, quality - 0.08);
+      quality = Math.max(IMAGE_MIN_QUALITY, quality - 0.05);
+    } else if (quality > IMAGE_EMERGENCY_MIN_QUALITY) {
+      quality = Math.max(IMAGE_EMERGENCY_MIN_QUALITY, quality - 0.08);
     } else {
       maxEdge = Math.max(IMAGE_MIN_EDGE, Math.round(maxEdge * 0.86));
     }
@@ -117,6 +151,56 @@ async function fileToAssetImage(file) {
     height: compressed.height,
     dataUrl: compressed.dataUrl
   };
+}
+
+async function recompressAssetImage(image, maxEdge, quality) {
+  const compressed = await compressImageDataUrl(image.dataUrl, maxEdge, quality);
+
+  return {
+    ...image,
+    type: "image/jpeg",
+    size: stringByteLength(compressed.dataUrl),
+    width: compressed.width,
+    height: compressed.height,
+    dataUrl: compressed.dataUrl
+  };
+}
+
+function buildAssetRequestBody(asset) {
+  return JSON.stringify({
+    assetId: asset.id,
+    mode: state.mode,
+    maxTitleLength,
+    images: asset.images,
+    resolutionMap: state.resolutionMap
+  });
+}
+
+async function ensureSafeAssetPayload(asset) {
+  let requestBody = buildAssetRequestBody(asset);
+  let requestBytes = stringByteLength(requestBody);
+
+  if (requestBytes <= MAX_ASSET_REQUEST_BYTES) {
+    return { requestBody, compressedAgain: false };
+  }
+
+  const compressionSteps = [
+    { maxEdge: 1200, quality: 0.72 },
+    { maxEdge: 1050, quality: 0.66 },
+    { maxEdge: 900, quality: 0.58 }
+  ];
+
+  for (const step of compressionSteps) {
+    asset.images = await Promise.all(asset.images.map((image) => recompressAssetImage(image, step.maxEdge, step.quality)));
+    requestBody = buildAssetRequestBody(asset);
+    requestBytes = stringByteLength(requestBody);
+
+    if (requestBytes <= MAX_ASSET_REQUEST_BYTES) {
+      return { requestBody, compressedAgain: true };
+    }
+  }
+
+  throw new Error(`图片请求体过大，请先裁剪或压缩后重试（约 ${(requestBytes / 1_000_000).toFixed(1)}MB）`);
 }
 
 function formatCost(requests) {
@@ -385,32 +469,44 @@ function reasoningFields(fields, unresolved = []) {
 }
 
 async function handleFiles(fileList) {
-  const imageFiles = [...fileList].filter((file) => file.type.startsWith("image/"));
+  const candidates = [...fileList];
+  const imageFiles = candidates.filter(isSupportedImageFile);
   if (!imageFiles.length) return;
 
-  setStatus("正在读取图片...");
+  setStatus("正在优化图片…");
   closeImageModal();
-  const images = await Promise.all(imageFiles.map(fileToAssetImage));
+  const settledImages = [];
+  const failures = [];
+
+  for (const file of imageFiles) {
+    try {
+      settledImages.push(await fileToAssetImage(file));
+    } catch (error) {
+      failures.push(`${file.name}: ${error.message}`);
+    }
+  }
+
+  const ignoredFiles = candidates
+    .filter((file) => !isSupportedImageFile(file))
+    .map((file) => `${file.name}: 不支持的图片格式`);
+  const images = settledImages;
   state.files = images;
   state.results = [];
-  setStatus(`${images.length} 张图片已准备好。`);
+
+  if (failures.length || ignoredFiles.length) {
+    setStatus(`${images.length} 张图片已优化，${failures.length + ignoredFiles.length} 张未读取：${[...failures, ...ignoredFiles].join("；")}`);
+  } else {
+    const compressedCount = images.filter((image) => image.originalSize && image.size < image.originalSize).length;
+    setStatus(compressedCount ? `${images.length} 张图片已优化，图片过大，已自动压缩用于识别。` : `${images.length} 张图片已优化。`);
+  }
+
   renderPreviews();
   renderResults();
 }
 
 async function processAsset(asset) {
-  const requestBody = JSON.stringify({
-    assetId: asset.id,
-    mode: state.mode,
-    maxTitleLength,
-    images: asset.images,
-    resolutionMap: state.resolutionMap
-  });
-  const requestBytes = stringByteLength(requestBody);
-
-  if (requestBytes > MAX_ASSET_REQUEST_BYTES) {
-    throw new Error(`图片请求体过大，请先裁剪或压缩后重试（约 ${(requestBytes / 1_000_000).toFixed(1)}MB）`);
-  }
+  const { requestBody, compressedAgain } = await ensureSafeAssetPayload(asset);
+  if (compressedAgain) setStatus("图片过大，已自动压缩用于识别。");
 
   const response = await fetch("/api/listing-copilot-title", {
     method: "POST",
@@ -456,6 +552,7 @@ async function processTitles() {
   state.results = [];
   renderResults();
   elements.processButton.disabled = true;
+  setStatus("图片已优化，开始识别…");
 
   const queue = [...state.assets];
   const workerCount = Math.min(MAX_CONCURRENT_WORKERS, queue.length);
