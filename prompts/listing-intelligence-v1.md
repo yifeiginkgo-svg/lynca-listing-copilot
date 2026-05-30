@@ -178,7 +178,7 @@ Route the output for commercial listing readiness.
 
 Confidence does not mean the model feels good about the answer. Confidence means whether this listing can safely be copied into eBay with minimal human review.
 
-Default posture: do not choose HIGH unless the evidence supports it. Under-confidence is acceptable. Over-confidence is dangerous. Optimize for operator trust, not HIGH percentage.
+Default posture: confidence starts at MEDIUM, not HIGH. Upgrade to HIGH only when every HIGH requirement is satisfied. Downgrade to LOW whenever high-value collectible fields are missing, wrong, or visually uncertain. Under-confidence is acceptable. Over-confidence is dangerous. Optimize for operator trust, not HIGH percentage.
 
 HIGH does not mean "the model generated a title." HIGH means a professional listing operator can likely publish this title without review. Expected HIGH rate is roughly 10-20%.
 
@@ -189,8 +189,17 @@ HIGH requirements:
 - Year is confirmed with no conflict.
 - Brand/product is confirmed.
 - Key variant, parallel, insert, SSP, auto, patch, relic, grade, and serial are included when visible or applicable.
+- No unresolved parallel, insert, serial, auto, or grade issue exists.
+- Evidence comes from a PSA/BGS/CGC label, clear card text, or clear back text.
 - No obvious high-value field is missing from the title.
 - Title is commercially ready for eBay.
+
+HIGH should be mostly limited to:
+
+- slab/label-assisted cases with explicit grade, parallel, serial, auto, or product evidence
+- very simple cards with no visible parallel, insert, auto, serial, or grade uncertainty
+- clean auto cases where auto is obvious and included
+- clean dual auto cases where both players, auto, and serial are included
 
 MEDIUM:
 
@@ -198,6 +207,7 @@ MEDIUM:
 - Some collectible terminology may require review.
 - Use MEDIUM for visually inferred parallel, insert, or pattern classifications.
 - Use MEDIUM when the card is mostly right but not safe enough to publish without review.
+- Use MEDIUM for Power Chords or other insert identification unless all key fields are complete and evidence-backed.
 - Operator should review before posting.
 - Expected MEDIUM rate is roughly 60-70%.
 
@@ -207,6 +217,7 @@ LOW:
 - Core fields conflict.
 - Significant uncertainty exists.
 - Use LOW for wrong or unsupported year, incomplete or wrong serial, guessed parallel family, missing auto, missing insert, missing SSP, missing Wave/Shimmer/Pattern/Foil, missing key collectible terminology, or reasoning that contradicts the title.
+- Use LOW when a generic family is substituted for a specific market term, such as `Orange Parallel` instead of `Orange Pattern Foil`, `Yellow Parallel` instead of `Gold Foil`, or `Blue Wave` when the reference term is `Wave Refractor`.
 - LOW items must be manually corrected before posting.
 - Expected LOW rate is roughly 10-20%.
 
@@ -218,6 +229,8 @@ Downgrade triggers:
 - Do not allow HIGH when serial appears incomplete.
 - Do not allow HIGH when year is not supported by strong evidence.
 - Do not allow HIGH when the parallel family is uncertain.
+- Any visual-only classification for Wave, Shimmer, Pattern, Foil, Refractor, Disco, Pulsar, or Prizm color/pattern must cap confidence at MEDIUM.
+- Incomplete or generic parallel family must cap confidence at MEDIUM or LOW.
 - Missing serial when a numbered card is visible.
 - Missing auto when an autograph is visible.
 - Missing or wrong year.
@@ -247,6 +260,21 @@ Do not say `All key fields are clearly visible and resolved` when a high-value f
 Preferred uncertainty language:
 
 `Core identity fields are visible; parallel or insert classification requires review.`
+
+Use this exact style when parallel is visually inferred, insert is visually inferred, serial is uncertain, variant terminology is incomplete, or the title omits a visible high-value field:
+
+`Core identity fields are visible; parallel/variant terminology requires operator review.`
+
+### Calibration Examples
+
+- Dasan Hill: Blue Wave vs Wave Refractor uncertainty means MEDIUM, not HIGH.
+- Wei-En Lin: wrong year, wrong parallel, or wrong/incomplete serial means LOW.
+- Ethan Dorchies: missed Aqua Shimmer or incorrect serial means LOW.
+- Luke Keaschall: Gold Foil misclassified as Yellow Parallel means LOW.
+- Michael Harris II: Orange Pattern Foil simplified to Orange Parallel means LOW or MEDIUM, not HIGH.
+- Dauri Fernandez: Yellow Wave likely correct but visual-only means MEDIUM.
+- Power Chords: insert identified but not label-backed means MEDIUM unless all key fields are complete.
+- PSA/BGS/CGC slab with explicit label support can be HIGH if grade, player, product, parallel, auto, or serial are fully supported.
 
 ## Evaluation Philosophy
 

@@ -100,3 +100,26 @@ Do not allow HIGH when:
 ## Goal
 
 The system should become more conservative. Trustworthiness is more important than optimism.
+
+## Implementation Rule
+
+Prompt instructions alone are not enough. The API should run a final confidence audit after model output.
+
+The audit should only downgrade, never upgrade.
+
+Downgrade HIGH to MEDIUM when:
+
+- evidence is not label/card-text/back-text supported
+- unresolved fields exist
+- reasoning contains uncertainty language
+- parallel or insert classification is visual-only
+- Wave, Shimmer, Pattern, Foil, Refractor, Disco, Pulsar, or Prizm terminology is not evidence-backed
+
+Downgrade to LOW when:
+
+- title omits a high-value field present in extracted fields
+- year conflicts with the title
+- serial, auto, grade, insert, parallel, relic, patch, sketch, redemption, or 1/1 is extracted but missing from the title
+- reasoning explicitly mentions wrong/missing year, serial, parallel, auto, insert, SSP, or contradiction
+
+The main failure mode to avoid is HIGH + wrong.

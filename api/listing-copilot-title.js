@@ -176,6 +176,240 @@ function normalizeUnresolved(unresolved, fields = {}) {
     .slice(0, 12);
 }
 
+function searchable(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function titleIncludes(titleText, value) {
+  const normalizedValue = searchable(value);
+  if (!normalizedValue) return true;
+  return normalizedValue
+    .split(" ")
+    .filter(Boolean)
+    .every((part) => titleText.includes(part));
+}
+
+function titleIncludesAny(titleText, values) {
+  return values.some((value) => titleText.includes(value));
+}
+
+function gradeIncluded(titleText, grade) {
+  if (!grade) return true;
+  if (titleIncludes(titleText, grade)) return true;
+
+  const numericGrade = String(grade).match(/\b\d+(?:\.\d+)?\b/);
+  return Boolean(numericGrade && titleText.includes(numericGrade[0]));
+}
+
+function yearConflict(titleText, fieldYear) {
+  if (!fieldYear) return false;
+  const titleYears = titleText.match(/\b20\d{2}(?:-\d{2})?\b/g) || [];
+  return titleYears.length > 0 && !titleYears.some((year) => year === fieldYear || year.startsWith(`${fieldYear}-`));
+}
+
+function textMentionsAny(text, words) {
+  return words.some((word) => text.includes(word));
+}
+
+function hasStrongEvidence(reasonText) {
+  if (textMentionsAny(reasonText, [
+    "not label-backed",
+    "not label backed",
+    "no label",
+    "without label",
+    "not supported by label",
+    "not confirmed"
+  ])) {
+    return false;
+  }
+
+  return textMentionsAny(reasonText, [
+    "psa",
+    "bgs",
+    "beckett",
+    "cgc",
+    "label",
+    "card text",
+    "back text",
+    "back-side",
+    "back side",
+    "reverse text",
+    "printed",
+    "states",
+    "explicit"
+  ]);
+}
+
+function hasUncertainty(reasonText, unresolved) {
+  const unresolvedText = searchable(unresolved.join(" "));
+  const combined = `${reasonText} ${unresolvedText}`;
+  return textMentionsAny(combined, [
+    "uncertain",
+    "unsure",
+    "likely",
+    "inferred",
+    "visual-only",
+    "visual only",
+    "appears",
+    "seems",
+    "possible",
+    "may be",
+    "review",
+    "unclear",
+    "ambiguous",
+    "partial",
+    "partially",
+    "incomplete",
+    "guess",
+    "guessed",
+    "not confirmed",
+    "unresolved"
+  ]);
+}
+
+function hasVisualOnlyParallelRisk(fields, reasonText, unresolved) {
+  const parallelText = searchable(fields.parallel);
+  const combined = `${parallelText} ${reasonText} ${searchable(unresolved.join(" "))}`;
+  const patternTerms = [
+    "wave",
+    "shimmer",
+    "pattern",
+    "foil",
+    "refractor",
+    "disco",
+    "pulsar",
+    "prizm",
+    "parallel"
+  ];
+
+  if (!textMentionsAny(combined, patternTerms)) return false;
+  return textMentionsAny(combined, ["visual", "visible", "looks", "appears", "inferred", "likely", "guess"])
+    && !hasStrongEvidence(reasonText);
+}
+
+function auditMissingHighValueFields(title, fields) {
+  const titleText = searchable(title);
+  const missing = [];
+
+  if (fields.year && (!titleText.includes(fields.year) || yearConflict(titleText, fields.year))) {
+    missing.push("year");
+  }
+
+  if (fields.serial_number && !titleText.includes(searchable(fields.serial_number))) {
+    missing.push("serial");
+  }
+
+  if (fields.auto && !titleIncludesAny(titleText, ["auto", "autograph", "signed"])) {
+    missing.push("auto");
+  }
+
+  if (fields.relic && !titleIncludesAny(titleText, ["relic", "memorabilia"])) {
+    missing.push("relic");
+  }
+
+  if (fields.patch && !titleText.includes("patch")) {
+    missing.push("patch");
+  }
+
+  if (fields.sketch && !titleText.includes("sketch")) {
+    missing.push("sketch");
+  }
+
+  if (fields.redemption && !titleText.includes("redemption")) {
+    missing.push("redemption");
+  }
+
+  if (fields.one_of_one && !titleIncludesAny(titleText, ["1/1", "one of one"])) {
+    missing.push("1/1");
+  }
+
+  if (fields.grade_company && !titleIncludes(titleText, fields.grade_company)) {
+    missing.push("grade company");
+  }
+
+  if (fields.grade && !gradeIncluded(titleText, fields.grade)) {
+    missing.push("grade");
+  }
+
+  if (fields.parallel && !titleIncludes(titleText, fields.parallel)) {
+    missing.push("parallel");
+  }
+
+  if (fields.insert && !titleIncludes(titleText, fields.insert)) {
+    missing.push("insert");
+  }
+
+  return missing;
+}
+
+function calibrateConfidence({ title, confidence, reason, fields, unresolved }) {
+  if (confidence === "FAILED") return { confidence, reason, unresolved };
+
+  const reasonText = searchable(reason);
+  const missingHighValueFields = auditMissingHighValueFields(title, fields);
+  const calibratedUnresolved = [...unresolved];
+  missingHighValueFields.forEach((field) => {
+    const label = `title missing ${field}`;
+    if (!calibratedUnresolved.includes(label)) calibratedUnresolved.push(label);
+  });
+
+  const lowTriggers = missingHighValueFields.length > 0
+    || yearConflict(searchable(title), fields.year)
+    || textMentionsAny(`${reasonText} ${searchable(unresolved.join(" "))}`, [
+      "wrong year",
+      "year mismatch",
+      "wrong serial",
+      "serial mismatch",
+      "wrong parallel",
+      "parallel mismatch",
+      "missing auto",
+      "missing serial",
+      "missing insert",
+      "missing ssp",
+      "contradicts title"
+    ]);
+
+  if (lowTriggers) {
+    return {
+      confidence: "LOW",
+      reason: appendCalibrationReason(reason, "Confidence downgraded: high-value fields require manual correction."),
+      unresolved: calibratedUnresolved.slice(0, 12)
+    };
+  }
+
+  if (confidence !== "HIGH") {
+    return { confidence, reason, unresolved: calibratedUnresolved };
+  }
+
+  const highAllowed = hasStrongEvidence(reasonText)
+    && calibratedUnresolved.length === 0
+    && !hasUncertainty(reasonText, calibratedUnresolved)
+    && !hasVisualOnlyParallelRisk(fields, reasonText, calibratedUnresolved);
+
+  if (highAllowed) {
+    return { confidence, reason, unresolved: calibratedUnresolved };
+  }
+
+  const reviewLabel = "operator review required";
+  if (!calibratedUnresolved.includes(reviewLabel)) calibratedUnresolved.push(reviewLabel);
+
+  return {
+    confidence: "MEDIUM",
+    reason: appendCalibrationReason(reason, "Confidence downgraded: core identity fields may be usable, but listing readiness requires operator review."),
+    unresolved: calibratedUnresolved.slice(0, 12)
+  };
+}
+
+function appendCalibrationReason(reason, calibrationReason) {
+  const base = String(reason || "").trim();
+  const combined = base ? `${base} ${calibrationReason}` : calibrationReason;
+  return combined.slice(0, 240);
+}
+
 function fallbackResult(payload) {
   const firstImage = payload.images?.[0] || {};
   const sourceName = compactFileName(firstImage.name);
@@ -231,13 +465,22 @@ function normalizeAiResult(result, maxTitleLength) {
   };
   const confidence = confidenceMap[String(result.confidence || "").toUpperCase()] || "MEDIUM";
   const fields = normalizeFields(result.fields);
-
-  return {
-    title: normalizeTitle(result.title, maxTitleLength),
+  const title = normalizeTitle(result.title, maxTitleLength);
+  const unresolved = normalizeUnresolved(result.unresolved, result.fields);
+  const calibrated = calibrateConfidence({
+    title,
     confidence,
     reason: String(result.reason || "").slice(0, 240),
     fields,
-    unresolved: normalizeUnresolved(result.unresolved, result.fields),
+    unresolved
+  });
+
+  return {
+    title,
+    confidence: calibrated.confidence,
+    reason: calibrated.reason,
+    fields,
+    unresolved: calibrated.unresolved,
     source: "openai"
   };
 }
