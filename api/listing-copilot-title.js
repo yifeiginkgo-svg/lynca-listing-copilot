@@ -113,6 +113,26 @@ function stripBackgroundTerms(value) {
   ).replace(/\s+/g, " ").trim();
 }
 
+function stripLiteralPhrase(value, phrase) {
+  const text = String(value || "");
+  const needle = String(phrase || "").trim();
+  if (!needle) return text;
+
+  return text
+    .replace(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function rawIncludes(value, needle) {
+  return String(value || "").toLowerCase().includes(String(needle || "").toLowerCase());
+}
+
+function ensureTitleTerm(title, term) {
+  if (!term || rawIncludes(title, term)) return title;
+  return `${title} ${term}`.replace(/\s+/g, " ").trim();
+}
+
 function containsBackgroundTerm(value) {
   return backgroundTermPatterns.some((pattern) => {
     pattern.lastIndex = 0;
@@ -486,7 +506,7 @@ function appendCalibrationReason(reason, calibrationReason) {
   return combined.slice(0, 240);
 }
 
-function sanitizeResultText(result, maxTitleLength) {
+function sanitizeResultText(result, fields, confidence, unresolved, maxTitleLength) {
   const hadBackgroundContamination = [
     result.title,
     result.reason,
@@ -495,13 +515,69 @@ function sanitizeResultText(result, maxTitleLength) {
 
   const title = normalizeTitle(stripBackgroundTerms(result.title), maxTitleLength);
   const reason = stripBackgroundTerms(result.reason);
-
-  return {
+  const illustratorGuard = applyIllustratorMetadataGuard({
     title,
     reason: hadBackgroundContamination
       ? appendCalibrationReason(reason, "Background branding ignored.")
       : reason,
+    fields,
+    confidence,
+    unresolved,
+    maxTitleLength
+  });
+
+  return {
+    ...illustratorGuard,
     hadBackgroundContamination
+  };
+}
+
+function applyIllustratorMetadataGuard({ title, reason, fields, confidence, unresolved, maxTitleLength }) {
+  if (!fields.artist || fields.sketch) {
+    return { title, reason, confidence, unresolved };
+  }
+
+  const artistInTitle = rawIncludes(title, fields.artist);
+  const identity = fields.character || fields.player;
+  const likelyPokemonTrainer = [
+    title,
+    reason,
+    fields.brand,
+    fields.product,
+    fields.set,
+    fields.subset,
+    fields.insert
+  ].some((value) => /pokemon|pokémon|trainer|supporter|tcg|支援者|训练家|訓練家|寶可夢|宝可梦/i.test(String(value || "")));
+
+  if (!artistInTitle && !likelyPokemonTrainer) {
+    return { title, reason, confidence, unresolved };
+  }
+
+  let guardedTitle = artistInTitle ? stripLiteralPhrase(title, fields.artist) : title;
+  if (likelyPokemonTrainer && !fields.year) {
+    guardedTitle = guardedTitle.replace(/\b20\d{2}\b/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  if (identity && !rawIncludes(guardedTitle, identity)) {
+    guardedTitle = `${identity} ${guardedTitle}`.replace(/\s+/g, " ").trim();
+  }
+
+  guardedTitle = ensureTitleTerm(guardedTitle, fields.card_number);
+  guardedTitle = ensureTitleTerm(guardedTitle, fields.subset);
+  guardedTitle = ensureTitleTerm(guardedTitle, fields.set);
+
+  const guardedUnresolved = [...unresolved];
+  if (!guardedUnresolved.includes("illustrator metadata only")) {
+    guardedUnresolved.push("illustrator metadata only");
+  }
+
+  return {
+    title: normalizeTitle(guardedTitle, maxTitleLength),
+    confidence: confidence === "HIGH" ? "MEDIUM" : confidence,
+    reason: appendCalibrationReason(reason, identity
+      ? "Illustrator is metadata only."
+      : "Illustrator is metadata only; localized trainer identity requires operator review."),
+    unresolved: guardedUnresolved
   };
 }
 
@@ -560,17 +636,17 @@ function normalizeAiResult(result, maxTitleLength) {
   };
   const confidence = confidenceMap[String(result.confidence || "").toUpperCase()] || "MEDIUM";
   const fields = normalizeFields(result.fields);
-  const sanitized = sanitizeResultText(result, maxTitleLength);
-  const title = sanitized.title;
   const unresolved = normalizeUnresolved(result.unresolved, result.fields);
+  const sanitized = sanitizeResultText(result, fields, confidence, unresolved, maxTitleLength);
+  const title = sanitized.title;
   const calibrated = calibrateConfidence({
     title,
-    confidence,
+    confidence: sanitized.confidence,
     reason: sanitized.reason.slice(0, 240),
     fields,
     unresolved: sanitized.hadBackgroundContamination
-      ? [...unresolved, "background branding ignored"]
-      : unresolved
+      ? [...sanitized.unresolved, "background branding ignored"]
+      : sanitized.unresolved
   });
 
   return {

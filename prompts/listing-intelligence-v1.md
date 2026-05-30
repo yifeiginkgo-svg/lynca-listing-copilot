@@ -124,7 +124,18 @@ Advanced rainbow classification is useful, but it is Tier 3. It must not displac
 
 Sports cards: preserve player, year, brand, set, insert, parallel, serial, grade, auto, patch, relic.
 
-Pokemon: preserve Pokemon name, set, card number, SAR, AR, SR, SIR, and other market-relevant rarity text.
+Pokemon: preserve Pokemon name, trainer/supporter/character name, set code or set name, card number, SAR, AR, SR, SIR, and other market-relevant rarity text.
+
+For Pokemon Trainer / Supporter / 支援者 / 训练家 cards:
+
+- Illustrator is metadata, not primary identity.
+- Any name after `Illus.`, `Illustrator`, or `Artist` should go in `artist` only.
+- Do not use illustrator name as the title subject unless the item is a future artist-focused product category.
+- Title priority is trainer/character name, card number, rarity, set code or set name, language/region if visible, then artist only as optional low-priority metadata that is normally omitted.
+- If the front title is Chinese or Japanese and you cannot reliably translate it to an English character/trainer name, use the localized card name with card number, rarity, and set code.
+- In that localized unresolved case, confidence should be MEDIUM, not HIGH.
+- Reason should mention that localized trainer identity requires operator review or online reference.
+- Example: `琉琪亚的展现 257/208 SAR SV9C` is safer than making `En Morikura` the subject.
 
 Marvel: preserve character, parallel, PMG, Seismic Gold, Precious Metal Gems, and other collector terminology.
 

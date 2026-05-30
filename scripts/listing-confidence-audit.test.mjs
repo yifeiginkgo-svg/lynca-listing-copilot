@@ -139,4 +139,28 @@ const missingVisibleSerial = await callApi({
 assert.equal(missingVisibleSerial.confidence, "LOW");
 assert.match(missingVisibleSerial.unresolved.join(" "), /title missing serial/);
 
+const localizedTrainerIllustrator = await callApi({
+  title: "2026 Pokemon Scarlet Violet 257/208 SAR En Morikura Trainer Card",
+  confidence: "HIGH",
+  reason: "Chinese Pokemon Trainer card; Illus. En Morikura is visible.",
+  fields: {
+    brand: "Pokemon TCG",
+    product: "Pokemon Scarlet Violet",
+    character: "琉琪亚的展现",
+    set: "SV9C",
+    subset: "SAR",
+    card_number: "257/208",
+    artist: "En Morikura"
+  },
+  unresolved: ["localized trainer identity requires operator review"]
+});
+
+assert.doesNotMatch(localizedTrainerIllustrator.title, /En Morikura/i);
+assert.match(localizedTrainerIllustrator.title, /琉琪亚的展现/);
+assert.match(localizedTrainerIllustrator.title, /257\/208/);
+assert.match(localizedTrainerIllustrator.title, /SAR/);
+assert.match(localizedTrainerIllustrator.title, /SV9C/);
+assert.equal(localizedTrainerIllustrator.confidence, "MEDIUM");
+assert.match(localizedTrainerIllustrator.reason, /Illustrator is metadata only/i);
+
 console.log("listing confidence audit mock tests passed");
