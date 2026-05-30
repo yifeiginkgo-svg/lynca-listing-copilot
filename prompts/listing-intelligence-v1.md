@@ -61,9 +61,11 @@ Specific extraction rules:
 - PSA label: extract grade company and grade if visible.
 - BGS label: extract grade company, grade, and visible subgrades only if the output schema later supports them; otherwise mention subgrades in unresolved.
 - CGC label: extract grade company and grade if visible.
+- Serial number extraction has higher business value than advanced parallel classification. Serial accuracy is a Tier 1 objective.
 - Serial numbers such as `2/5`, `031/150`, `1/1`, `04/10`, `436/500`, and `17/99` must be extracted only when the denominator and numerator are clearly visible.
 - Card codes such as `SR-KD`, `FIN-10`, `TP-NYK`, `VPA-VIN`, `FGRA-RA`, `ADT-CG`, `CM-KDR`, and `LD-9` must be extracted if visible.
-- If a number looks ambiguous, put the ambiguous item in `unresolved` and do not mark confidence HIGH.
+- If a serial number looks ambiguous, put the ambiguous item in `unresolved` and do not mark confidence HIGH.
+- If a tradeoff exists between reading a serial number and classifying a rainbow parallel, prioritize the serial number every time.
 - If there are multiple unrelated cards or a lot listing, mark confidence FAILED.
 
 ## 2. Resolution Engine
@@ -98,6 +100,8 @@ If unresolved, mark unresolved. Do not invent.
 
 ### Parallel and Insert Taxonomy Awareness
 
+Do not force the Vision Engine to solve all taxonomy problems during MVP. Vision should prioritize observable facts: OCR accuracy, serial accuracy, label accuracy, and card number accuracy.
+
 The current system often recognizes color better than pattern. Do not reduce pattern-based parallels to color-only terms.
 
 Examples:
@@ -109,6 +113,8 @@ Examples:
 Important parallel families include wave, shimmer, lava, speckle, mojo, mini diamond, pattern foil, logo parallels, and foil color variants.
 
 Insert names are a separate knowledge category from parallels. Preserve insert names such as `Spotlight`, `Power Chords`, and `Draft Pick Pairings` when visible or safely resolved.
+
+Advanced rainbow classification is useful, but it is Tier 3. It must not displace Tier 1 extraction.
 
 ## 3. Collectible Category Logic
 
@@ -128,36 +134,52 @@ Purpose: generate one eBay-ready title.
 
 Maximum length: 80 characters.
 
-Title priority tiers:
+Field priority tiers:
 
-Tier 1 - highest market priority:
+Tier 1 - Critical, must extract:
 
 - Player or character
+- Serial number
+- Grade
 - Auto or dual auto
 - Patch
 - Relic
-- Grade
-- Parallel
-- Serial number
+- Card number
+- 1/1 indicator
 
-Tier 2:
+Missing or incorrect Tier 1 fields should heavily impact confidence.
 
+Tier 2 - Important:
+
+- Team
+- Product
 - Insert
 - Rookie
 - 1st Bowman
 
-Tier 3:
+Tier 3 - Best effort:
 
-- Team
-- Product
-- League
+- Rainbow parallel classification
+- Wave
+- Shimmer
+- Pattern
+- Foil
+- Lava
+- Velocity
+- Disco
+- Pulsar
+- Mojo
 
 Tier 4:
 
-- Card number
 - Redundant product terms
 
-Use the tiers to decide what to keep when the title must fit within 80 characters. Do not let Tier 3 or Tier 4 terms crowd out Tier 1 terms.
+Use the tiers to decide what to keep when the title must fit within 80 characters. Do not let Tier 2, Tier 3, or Tier 4 terms crowd out Tier 1 terms.
+
+When uncertain, prefer:
+
+- `Orange Refractor 02/25` over `Orange Pattern Foil` with missing serial.
+- `Purple Parallel 137/199` over `Fuchsia Wave Refractor` without confidence.
 
 Rules:
 
@@ -188,8 +210,8 @@ HIGH requirements:
 - Player or character is confirmed.
 - Year is confirmed with no conflict.
 - Brand/product is confirmed.
-- Key variant, parallel, insert, SSP, auto, patch, relic, grade, and serial are included when visible or applicable.
-- No unresolved parallel, insert, serial, auto, or grade issue exists.
+- Tier 1 fields are correctly resolved: player/entity, serial number, grade, auto, patch, relic, card number, and 1/1 indicator when visible or applicable.
+- No unresolved serial, auto, grade, card number, or 1/1 issue exists.
 - Evidence comes from a PSA/BGS/CGC label, clear card text, or clear back text.
 - No obvious high-value field is missing from the title.
 - Title is commercially ready for eBay.
@@ -198,6 +220,7 @@ HIGH should be mostly limited to:
 
 - slab/label-assisted cases with explicit grade, parallel, serial, auto, or product evidence
 - very simple cards with no visible parallel, insert, auto, serial, or grade uncertainty
+- cards where player, serial, auto, and grade are visible and resolved, even if the parallel is generic
 - clean auto cases where auto is obvious and included
 - clean dual auto cases where both players, auto, and serial are included
 
@@ -207,6 +230,7 @@ MEDIUM:
 - Some collectible terminology may require review.
 - Use MEDIUM for visually inferred parallel, insert, or pattern classifications.
 - Use MEDIUM when the card is mostly right but not safe enough to publish without review.
+- Use MEDIUM when Tier 1 fields are correct but Tier 3 parallel classification is generic or best-effort.
 - Use MEDIUM for Power Chords or other insert identification unless all key fields are complete and evidence-backed.
 - Operator should review before posting.
 - Expected MEDIUM rate is roughly 60-70%.
@@ -216,29 +240,30 @@ LOW:
 - High-value information is likely missing.
 - Core fields conflict.
 - Significant uncertainty exists.
-- Use LOW for wrong or unsupported year, incomplete or wrong serial, guessed parallel family, missing auto, missing insert, missing SSP, missing Wave/Shimmer/Pattern/Foil, missing key collectible terminology, or reasoning that contradicts the title.
-- Use LOW when a generic family is substituted for a specific market term, such as `Orange Parallel` instead of `Orange Pattern Foil`, `Yellow Parallel` instead of `Gold Foil`, or `Blue Wave` when the reference term is `Wave Refractor`.
+- Use LOW for wrong or unsupported year, incomplete or wrong serial, missing visible serial, missing auto, missing grade, missing card number/code, missing 1/1 indicator, missing patch/relic, or reasoning that contradicts the title.
+- Use LOW when a generic family is substituted for a specific market term only if a Tier 1 field is also missing, wrong, or unresolved. Otherwise use MEDIUM.
 - LOW items must be manually corrected before posting.
 - Expected LOW rate is roughly 10-20%.
 
 Downgrade triggers:
 
-- Do not allow HIGH when Wave, Shimmer, Pattern, or Foil classification is visual-only.
+- Do not spend reasoning budget on Wave, Shimmer, Pattern, or Foil classification before extracting serial number, grade, auto, card number, and 1/1 indicator.
 - Do not allow HIGH when insert identification is visual-only.
 - Do not allow HIGH when SSP is not confirmed.
 - Do not allow HIGH when serial appears incomplete.
 - Do not allow HIGH when year is not supported by strong evidence.
-- Do not allow HIGH when the parallel family is uncertain.
-- Any visual-only classification for Wave, Shimmer, Pattern, Foil, Refractor, Disco, Pulsar, or Prizm color/pattern must cap confidence at MEDIUM.
-- Incomplete or generic parallel family must cap confidence at MEDIUM or LOW.
+- Parallel uncertainty alone should usually cap confidence at MEDIUM, not LOW, when Tier 1 fields are complete.
+- Incomplete or generic parallel family must cap confidence at MEDIUM unless Tier 1 fields are missing or wrong.
 - Missing serial when a numbered card is visible.
 - Missing auto when an autograph is visible.
 - Missing or wrong year.
-- Missing Wave, Shimmer, Pattern, Foil, SSP, or Insert when visible or strongly indicated.
-- Color-only output when a pattern-specific parallel is visible.
+- Missing Wave, Shimmer, Pattern, Foil, SSP, or Insert when visible or strongly indicated should usually downgrade HIGH to MEDIUM when Tier 1 fields are complete.
+- Color-only output when a pattern-specific parallel is visible should usually downgrade HIGH to MEDIUM when Tier 1 fields are complete.
 - Visual guess without text evidence.
 - Title omits a visible high-value field.
 - Reasoning claims a field is resolved but the title omits it.
+
+The main MVP utility rule: `serial missing + perfect parallel` is worse than `serial correct + generic parallel`.
 
 FAILED:
 

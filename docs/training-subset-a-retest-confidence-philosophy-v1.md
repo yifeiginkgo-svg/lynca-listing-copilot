@@ -119,7 +119,13 @@ Downgrade to LOW when:
 
 - title omits a high-value field present in extracted fields
 - year conflicts with the title
-- serial, auto, grade, insert, parallel, relic, patch, sketch, redemption, or 1/1 is extracted but missing from the title
-- reasoning explicitly mentions wrong/missing year, serial, parallel, auto, insert, SSP, or contradiction
+- serial, auto, grade, card number, relic, patch, sketch, redemption, or 1/1 is extracted but missing from the title
+- reasoning explicitly mentions wrong/missing year, serial, auto, grade, card number, or contradiction
+
+Downgrade HIGH to MEDIUM, not LOW, when:
+
+- Tier 1 fields are complete but parallel terminology is generic
+- Tier 1 fields are complete but insert or parallel classification requires operator review
+- the title preserves serial number but uses a best-effort rainbow parallel term
 
 The main failure mode to avoid is HIGH + wrong.

@@ -303,6 +303,10 @@ function auditMissingHighValueFields(title, fields) {
     missing.push("serial");
   }
 
+  if (fields.card_number && !titleIncludes(titleText, fields.card_number)) {
+    missing.push("card number");
+  }
+
   if (fields.auto && !titleIncludesAny(titleText, ["auto", "autograph", "signed"])) {
     missing.push("auto");
   }
@@ -335,6 +339,13 @@ function auditMissingHighValueFields(title, fields) {
     missing.push("grade");
   }
 
+  return missing;
+}
+
+function auditMissingReviewFields(title, fields) {
+  const titleText = searchable(title);
+  const missing = [];
+
   if (fields.parallel && !titleIncludes(titleText, fields.parallel)) {
     missing.push("parallel");
   }
@@ -364,12 +375,11 @@ function calibrateConfidence({ title, confidence, reason, fields, unresolved }) 
       "year mismatch",
       "wrong serial",
       "serial mismatch",
-      "wrong parallel",
-      "parallel mismatch",
       "missing auto",
       "missing serial",
-      "missing insert",
-      "missing ssp",
+      "missing grade",
+      "missing card number",
+      "missing 1/1",
       "contradicts title"
     ]);
 
@@ -384,6 +394,12 @@ function calibrateConfidence({ title, confidence, reason, fields, unresolved }) 
   if (confidence !== "HIGH") {
     return { confidence, reason, unresolved: calibratedUnresolved };
   }
+
+  const missingReviewFields = auditMissingReviewFields(title, fields);
+  missingReviewFields.forEach((field) => {
+    const label = `title missing ${field}`;
+    if (!calibratedUnresolved.includes(label)) calibratedUnresolved.push(label);
+  });
 
   const highAllowed = hasStrongEvidence(reasonText)
     && calibratedUnresolved.length === 0
