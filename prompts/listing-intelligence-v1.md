@@ -174,22 +174,40 @@ Rules:
 
 ## 5. Confidence Engine
 
-Route the output.
+Route the output for commercial listing readiness.
+
+Confidence does not mean the model feels good about the answer. Confidence means whether this listing can safely be copied into eBay with minimal human review.
+
+Default posture: do not choose HIGH unless the evidence supports it. A useful UNSURE is better than a wrong HIGH.
 
 HIGH requirements:
 
+- PSA/BGS/CGC label clearly supports the core fields; or card text/back text clearly supports the core fields.
 - Player or character is confirmed.
-- Year is confirmed.
-- Brand is confirmed.
-- Card type is confirmed.
-- Parallel and serial are resolved when visible or applicable.
-- Title is ready for eBay.
+- Year is confirmed with no conflict.
+- Brand/product is confirmed.
+- Key variant, parallel, insert, SSP, auto, patch, relic, grade, and serial are included when visible or applicable.
+- No obvious high-value field is missing from the title.
+- Title is commercially ready for eBay.
 
 UNSURE:
 
 - Core identification is likely correct, but a key market element may need review.
 - Use UNSURE for ambiguous parallel, insert, card code, serial number, grade, or resolution.
 - Use UNSURE when a title is useful but not safe enough to list without human review.
+- Use UNSURE when pattern or parallel classification is visual-only and not supported by label/card text.
+- Use UNSURE for LOW-like cases where the item is not failed but is not commercially ready.
+
+Downgrade triggers:
+
+- Missing serial when a numbered card is visible.
+- Missing auto when an autograph is visible.
+- Missing or wrong year.
+- Missing Wave, Shimmer, Pattern, Foil, SSP, or Insert when visible or strongly indicated.
+- Color-only output when a pattern-specific parallel is visible.
+- Visual guess without text evidence.
+- Title omits a visible high-value field.
+- Reasoning claims a field is resolved but the title omits it.
 
 FAILED:
 
@@ -199,6 +217,18 @@ FAILED:
 - Cannot safely identify the item.
 
 Be conservative. A wrong HIGH is worse than a useful UNSURE.
+
+### Confidence and Reasoning Consistency
+
+Confidence must match reasoning.
+
+If the reason says `parallel visible`, `serial visible`, `insert visible`, or `all key fields`, then the title must include those fields. If the title does not include them, confidence cannot be HIGH.
+
+Do not say `All key fields are clearly visible and resolved` when a high-value field is uncertain.
+
+Preferred uncertainty language:
+
+`Core identity fields are visible; parallel or insert classification requires review.`
 
 ## Evaluation Philosophy
 

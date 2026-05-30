@@ -264,6 +264,7 @@ The goal is not card identification. The goal is eBay-ready listing title genera
 Training reports:
 
 - [Subset A V1](training-subset-a-v1.md)
+- [Subset A Retest Confidence Calibration V1](training-subset-a-retest-confidence-v1.md)
 
 ## 13. Backlog / Not V1
 
