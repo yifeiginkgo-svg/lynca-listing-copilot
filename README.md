@@ -33,6 +33,9 @@ lynca-listing-copilot/
 │  └─ listing-copilot-title.js
 ├─ docs/
 │  └─ spec-v1.md
+├─ prompts/
+│  ├─ listing-intelligence-v1.md
+│  └─ examples/
 ├─ scripts/
 │  └─ dev-server.mjs
 ├─ middleware.js
@@ -71,6 +74,23 @@ http://localhost:3000
 ```
 
 未配置 `OPENAI_API_KEY` 时，系统会用 filename fallback 验证上传、配对和复制流程。
+
+## Listing Intelligence Prompt
+
+OpenAI title generation uses editable prompt files under `prompts/`.
+
+```text
+prompts/
+├─ listing-intelligence-v1.md
+└─ examples/
+   ├─ sports.md
+   ├─ pokemon.md
+   ├─ marvel.md
+   ├─ sketch.md
+   └─ redemption.md
+```
+
+The API route loads these files at runtime, so prompt architecture can evolve without changing application logic.
 
 ## Vercel 部署
 

@@ -170,6 +170,7 @@ function pendingBox(asset) {
 
 function resultBox(result) {
   const disabled = result.confidence === "FAILED" || !result.title;
+  const unresolved = Array.isArray(result.unresolved) ? result.unresolved : [];
 
   return `
     <div class="title-output ${confidenceClass(result.confidence)}">
@@ -182,7 +183,7 @@ function resultBox(result) {
       <details>
         <summary>Show Reasoning</summary>
         <div class="field-list">
-          ${reasoningFields(result.fields || {}).map(([label, value]) => `
+          ${reasoningFields(result.fields || {}, unresolved).map(([label, value]) => `
             <div>
               <span>${label}</span>
               <strong>${value || "-"}</strong>
@@ -194,16 +195,28 @@ function resultBox(result) {
   `;
 }
 
-function reasoningFields(fields) {
+function reasoningFields(fields, unresolved = []) {
   return [
-    ["player / character", fields.playerOrCharacter],
+    ["player / character", fields.player || fields.character],
+    ["artist", fields.artist],
     ["year", fields.year],
-    ["brand / set", fields.brandSet],
-    ["subset / insert", fields.subsetInsert],
-    ["card number or code", fields.cardNumberCode],
-    ["serial number", fields.serialNumber],
-    ["auto / relic / patch / sketch / grade", fields.specialStatus],
-    ["unresolved fields", Array.isArray(fields.unresolvedFields) ? fields.unresolvedFields.join(", ") : fields.unresolvedFields]
+    ["brand", fields.brand],
+    ["product / set", [fields.product, fields.set].filter(Boolean).join(" / ")],
+    ["subset / insert", [fields.subset, fields.insert].filter(Boolean).join(" / ")],
+    ["parallel", fields.parallel],
+    ["team", fields.team],
+    ["card number or code", fields.card_number],
+    ["serial number", fields.serial_number],
+    ["grade", [fields.grade_company, fields.grade].filter(Boolean).join(" ")],
+    ["auto / relic / patch / sketch", [
+      fields.auto ? "auto" : "",
+      fields.relic ? "relic" : "",
+      fields.patch ? "patch" : "",
+      fields.sketch ? "sketch" : "",
+      fields.redemption ? "redemption" : "",
+      fields.one_of_one ? "1/1" : ""
+    ].filter(Boolean).join(", ")],
+    ["unresolved", unresolved.join(", ")]
   ];
 }
 
@@ -269,9 +282,8 @@ async function processTitles() {
         title: "",
         confidence: "FAILED",
         reason: error.message,
-        fields: {
-          unresolvedFields: ["request"]
-        }
+        fields: {},
+        unresolved: ["request"]
       });
     }
 

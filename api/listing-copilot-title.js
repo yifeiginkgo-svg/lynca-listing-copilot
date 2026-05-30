@@ -1,8 +1,44 @@
 import crypto from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const cookieName = "lynca_metaverse_session";
 const defaultModel = "gpt-4.1-mini";
 const maxFallbackTitleLength = 80;
+const promptRoot = join(process.cwd(), "prompts");
+const promptFiles = [
+  "listing-intelligence-v1.md",
+  "examples/sports.md",
+  "examples/pokemon.md",
+  "examples/marvel.md",
+  "examples/sketch.md",
+  "examples/redemption.md"
+];
+let promptCache;
+
+const defaultFields = {
+  year: null,
+  brand: null,
+  product: null,
+  set: null,
+  subset: null,
+  insert: null,
+  parallel: null,
+  player: null,
+  character: null,
+  artist: null,
+  team: null,
+  card_number: null,
+  serial_number: null,
+  grade_company: null,
+  grade: null,
+  auto: false,
+  relic: false,
+  patch: false,
+  sketch: false,
+  redemption: false,
+  one_of_one: false
+};
 
 function parseCookies(header) {
   return Object.fromEntries(
@@ -80,6 +116,66 @@ function findResolutionLabel(text, resolutionMap) {
   return match ? match : [];
 }
 
+async function loadPrompt() {
+  if (promptCache) return promptCache;
+
+  const sections = await Promise.all(promptFiles.map(async (file) => {
+    const content = await readFile(join(promptRoot, file), "utf8");
+    return `--- ${file} ---\n${content.trim()}`;
+  }));
+
+  promptCache = sections.join("\n\n");
+  return promptCache;
+}
+
+function normalizeBoolean(value) {
+  return value === true;
+}
+
+function normalizeStringOrNull(value) {
+  const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
+  return normalized || null;
+}
+
+function normalizeFields(fields = {}) {
+  return {
+    year: normalizeStringOrNull(fields.year),
+    brand: normalizeStringOrNull(fields.brand),
+    product: normalizeStringOrNull(fields.product),
+    set: normalizeStringOrNull(fields.set),
+    subset: normalizeStringOrNull(fields.subset),
+    insert: normalizeStringOrNull(fields.insert),
+    parallel: normalizeStringOrNull(fields.parallel),
+    player: normalizeStringOrNull(fields.player),
+    character: normalizeStringOrNull(fields.character),
+    artist: normalizeStringOrNull(fields.artist),
+    team: normalizeStringOrNull(fields.team),
+    card_number: normalizeStringOrNull(fields.card_number),
+    serial_number: normalizeStringOrNull(fields.serial_number),
+    grade_company: normalizeStringOrNull(fields.grade_company),
+    grade: normalizeStringOrNull(fields.grade),
+    auto: normalizeBoolean(fields.auto),
+    relic: normalizeBoolean(fields.relic),
+    patch: normalizeBoolean(fields.patch),
+    sketch: normalizeBoolean(fields.sketch),
+    redemption: normalizeBoolean(fields.redemption),
+    one_of_one: normalizeBoolean(fields.one_of_one)
+  };
+}
+
+function normalizeUnresolved(unresolved, fields = {}) {
+  const candidates = Array.isArray(unresolved)
+    ? unresolved
+    : Array.isArray(fields.unresolvedFields)
+      ? fields.unresolvedFields
+      : [];
+
+  return candidates
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 function fallbackResult(payload) {
   const firstImage = payload.images?.[0] || {};
   const sourceName = compactFileName(firstImage.name);
@@ -99,15 +195,11 @@ function fallbackResult(payload) {
       ? "Fallback result from filename because OPENAI_API_KEY is not configured."
       : "No usable filename or AI configuration.",
     fields: {
-      playerOrCharacter: "",
-      year: "",
-      brandSet: "",
-      subsetInsert: resolvedLabel || "",
-      cardNumberCode: code || "",
-      serialNumber: "",
-      specialStatus: "",
-      unresolvedFields: ["image identification", "market wording"]
+      ...defaultFields,
+      insert: resolvedLabel || null,
+      card_number: code || null
     },
+    unresolved: ["image identification", "market wording"],
     source: "fallback"
   };
 }
@@ -133,27 +225,21 @@ function normalizeAiResult(result, maxTitleLength) {
   const confidence = ["HIGH", "UNSURE", "FAILED"].includes(result.confidence)
     ? result.confidence
     : "UNSURE";
+  const fields = normalizeFields(result.fields);
 
   return {
     title: normalizeTitle(result.title, maxTitleLength),
     confidence,
     reason: String(result.reason || "").slice(0, 240),
-    fields: {
-      playerOrCharacter: result.fields?.playerOrCharacter || "",
-      year: result.fields?.year || "",
-      brandSet: result.fields?.brandSet || "",
-      subsetInsert: result.fields?.subsetInsert || "",
-      cardNumberCode: result.fields?.cardNumberCode || "",
-      serialNumber: result.fields?.serialNumber || "",
-      specialStatus: result.fields?.specialStatus || "",
-      unresolvedFields: Array.isArray(result.fields?.unresolvedFields) ? result.fields.unresolvedFields : []
-    },
+    fields,
+    unresolved: normalizeUnresolved(result.unresolved, result.fields),
     source: "openai"
   };
 }
 
 async function createOpenAiTitle(payload) {
   const maxTitleLength = payload.maxTitleLength || maxFallbackTitleLength;
+  const intelligencePrompt = await loadPrompt();
   const imageInputs = payload.images.map((image, index) => ({
     type: "input_image",
     image_url: image.dataUrl,
@@ -161,15 +247,26 @@ async function createOpenAiTitle(payload) {
   }));
 
   const prompt = [
-    "You are a Metaverse Cards listing specialist creating eBay-ready trading card titles.",
-    `Return only valid JSON. Title must be max ${maxTitleLength} characters.`,
-    "Confidence rules: HIGH means ready for eBay listing; UNSURE means key info is mostly complete but market terms, parallel, insert, or card code need review; FAILED means lot, multi-card group, too blurry, or unsafe to identify.",
-    "Preserve market-relevant collector terms: player/character/artist, year, brand/set, insert, parallel, serial number, grade, auto, relic, patch, sketch, card number/code.",
-    "Do not over-normalize collector terminology.",
+    intelligencePrompt,
+    `Runtime title limit: ${maxTitleLength} characters.`,
+    "Return only valid JSON. Do not wrap the response in Markdown.",
     "Resolution hints:",
     resolutionHints(payload.resolutionMap) || "None",
-    "JSON schema:",
-    "{\"title\":\"string\",\"confidence\":\"HIGH|UNSURE|FAILED\",\"reason\":\"string\",\"fields\":{\"playerOrCharacter\":\"string\",\"year\":\"string\",\"brandSet\":\"string\",\"subsetInsert\":\"string\",\"cardNumberCode\":\"string\",\"serialNumber\":\"string\",\"specialStatus\":\"string\",\"unresolvedFields\":[\"string\"]}}"
+    "Asset context:",
+    JSON.stringify({
+      assetId: payload.assetId || null,
+      mode: payload.mode || null,
+      imageCount: payload.images.length,
+      fileNames: payload.images.map((image) => image.name)
+    }),
+    "Required JSON shape:",
+    JSON.stringify({
+      title: "",
+      confidence: "HIGH | UNSURE | FAILED",
+      reason: "",
+      fields: defaultFields,
+      unresolved: []
+    })
   ].join("\n");
 
   const response = await fetch("https://api.openai.com/v1/responses", {
@@ -244,16 +341,8 @@ export default async function handler(req, res) {
       title: "",
       confidence: "FAILED",
       reason: error.message,
-      fields: {
-        playerOrCharacter: "",
-        year: "",
-        brandSet: "",
-        subsetInsert: "",
-        cardNumberCode: "",
-        serialNumber: "",
-        specialStatus: "",
-        unresolvedFields: ["api"]
-      },
+      fields: defaultFields,
+      unresolved: ["api"],
       source: "error"
     });
   }

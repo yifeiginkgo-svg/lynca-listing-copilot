@@ -230,7 +230,38 @@ app/config/
 
 V1 暂不迁移到数据库。
 
-## 12. Backlog / Not V1
+## 12. Prompt Architecture
+
+Prompt logic lives outside source code:
+
+```text
+prompts/
+├─ listing-intelligence-v1.md
+└─ examples/
+   ├─ sports.md
+   ├─ pokemon.md
+   ├─ marvel.md
+   ├─ sketch.md
+   └─ redemption.md
+```
+
+The API route loads prompt files before calling the OpenAI Responses API.
+
+The intelligence layer is structured as:
+
+```text
+Vision Engine
+↓
+Resolution Engine
+↓
+Title Engine
+↓
+Confidence Engine
+```
+
+The goal is not card identification. The goal is eBay-ready listing title generation that preserves collectible-market terminology.
+
+## 13. Backlog / Not V1
 
 V1 不做：
 
